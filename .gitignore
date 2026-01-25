@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.hypothesis/
+.ruff_cache/
+
+# Logs
+*.log
+logs/
+.co/logs/
+
+# Data (keep structure, ignore contents - contains personal email data)
+data/*.csv
+data/*.json
+data/*.md
+!data/.gitkeep
+
+# Samples (keep README, ignore audio files)
+samples/*.mp3
+samples/*.wav
+samples/*.m4a
+samples/*.aiff
+samples/*.aac
+samples/*.ogg
+samples/*.flac
+!samples/.gitkeep
+!samples/README.md
+
+# Credentials (NEVER commit)
+credentials.json
+token.json
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ConnectOnion
+.co/

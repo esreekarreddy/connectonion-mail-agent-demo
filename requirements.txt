@@ -1,0 +1,21 @@
+# ConnectOnion Gmail Agent - Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core framework
+connectonion>=0.4.1
+
+# CLI
+typer>=0.9.0
+rich>=13.0.0
+
+# Data validation
+pydantic>=2.0.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Development (optional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+tox>=4.0.0
+ruff>=0.1.0
