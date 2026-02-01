@@ -62,9 +62,11 @@ def add_email_insights(agent):
         if insight.action_needed and insight.suggested_action:
             console.print(f"💡 Suggested: {insight.suggested_action}")
 
-    except Exception:
-        # Insights are non-critical - graceful silent failure is intentional
-        pass
+    except Exception as e:
+        # Insights are non-critical - log error but don't break user experience
+        import logging
+
+        logging.warning(f"Email insights failed: {e}")
 
 
 # Export as plugin

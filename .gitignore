@@ -77,3 +77,6 @@ Thumbs.db
 
 # ConnectOnion
 .co/
+
+# Private/Local documentation
+.local/

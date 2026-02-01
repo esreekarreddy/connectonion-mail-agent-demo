@@ -263,7 +263,7 @@ def get_agent():
                 system_prompt="prompts/agent.md",
                 tools=_build_tools() + [init_crm_database],
                 plugins=_build_plugins(),
-                model="co/claude-sonnet-4-5",
+                model="co/claude-opus-4-5",
                 max_iterations=20,
             )
         return _agent
