@@ -4,11 +4,30 @@ Provides fuzzy search across contacts with rich metadata display.
 """
 
 import csv
+import sys
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import CONTACTS_FILE
+
 from connectonion.tui import CommandItem
 from connectonion.tui.fuzzy import fuzzy_match
+
+
+class HealthScore(Enum):
+    CRITICAL = "critical"
+    WARNING = "warning"
+    HEALTHY = "healthy"
+    UNKNOWN = ""
+
+
+class Priority(Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    UNKNOWN = ""
 
 
 class ContactProvider:
@@ -24,7 +43,7 @@ class ContactProvider:
         results = provider.search("dav")  # Fuzzy matches "Davis", "David", etc.
     """
 
-    def __init__(self, contacts_file: str = "data/contacts.csv"):
+    def __init__(self, contacts_file: str = CONTACTS_FILE):
         self.contacts_file = Path(contacts_file)
         self._contacts: Optional[list[dict]] = None
 
@@ -44,9 +63,19 @@ class ContactProvider:
                 name = row.get("name", "").strip()
                 company = row.get("company", "").strip()
                 relationship = row.get("relationship", "").strip()
-                priority = row.get("priority", "").strip()
+                priority_str = row.get("priority", "").strip().lower()
+                priority = (
+                    Priority(priority_str)
+                    if priority_str in [e.value for e in Priority]
+                    else Priority.UNKNOWN
+                )
                 contact_type = row.get("type", "").strip()
-                health_score = row.get("health_score", "").strip()
+                health_score_str = row.get("health_score", "").strip().lower()
+                health_score = (
+                    HealthScore(health_score_str)
+                    if health_score_str in [e.value for e in HealthScore]
+                    else HealthScore.UNKNOWN
+                )
                 last_contact = row.get("last_contact", "").strip()
 
                 if email:
@@ -68,15 +97,15 @@ class ContactProvider:
     def _get_icon(self, contact: dict) -> str:
         """Get icon based on contact type and health score."""
         contact_type = contact.get("type", "").upper()
-        health = contact.get("health_score", "").lower()
+        health = contact.get("health_score", HealthScore.UNKNOWN)
 
         # Health-based icons for people
         if contact_type == "PERSON":
-            if health == "critical":
+            if health == HealthScore.CRITICAL:
                 return "🔴"  # Red - needs attention
-            elif health == "warning":
+            elif health == HealthScore.WARNING:
                 return "🟡"  # Yellow - follow up soon
-            elif health == "healthy":
+            elif health == HealthScore.HEALTHY:
                 return "🟢"  # Green - good
             return "👤"  # Default person
         elif contact_type == "SERVICE":
@@ -114,11 +143,11 @@ class ContactProvider:
 
             if matched:
                 # Priority contacts get a boost
-                if contact.get("priority") == "high":
+                if contact.get("priority") == Priority.HIGH:
                     score += 50
 
                 # Critical health contacts get a boost (need attention)
-                if contact.get("health_score") == "critical":
+                if contact.get("health_score") == HealthScore.CRITICAL:
                     score += 30
 
                 results.append(
@@ -179,9 +208,13 @@ class ContactProvider:
     def get_high_priority(self) -> list[dict]:
         """Get all high priority contacts."""
         contacts = self._load_contacts()
-        return [c for c in contacts if c.get("priority") == "high"]
+        return [c for c in contacts if c.get("priority") == Priority.HIGH]
 
     def get_needs_attention(self) -> list[dict]:
         """Get contacts that need attention (critical/warning health)."""
         contacts = self._load_contacts()
-        return [c for c in contacts if c.get("health_score") in ("critical", "warning")]
+        return [
+            c
+            for c in contacts
+            if c.get("health_score") in (HealthScore.CRITICAL, HealthScore.WARNING)
+        ]

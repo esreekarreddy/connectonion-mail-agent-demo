@@ -1,7 +1,11 @@
 """Interactive Chat Mode for Email Agent using ConnectOnion TUI."""
 
+import logging
 import subprocess
+import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from connectonion.tui import Chat, CommandItem
 
@@ -24,30 +28,15 @@ from .core import (
     do_weekly,
 )
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils import set_env_flag
+from config import SUBPROCESS_TIMEOUT
+
 
 def _get_agent():
     from agent import get_agent
 
     return get_agent()
-
-
-def _set_env_flag(key: str, value: str):
-    env_path = Path(".env")
-    lines = []
-    if env_path.exists():
-        lines = env_path.read_text().splitlines()
-
-    found = False
-    for i, line in enumerate(lines):
-        if line.startswith(f"{key}="):
-            lines[i] = f"{key}={value}"
-            found = True
-            break
-
-    if not found:
-        lines.append(f"{key}={value}")
-
-    env_path.write_text("\n".join(lines) + "\n")
 
 
 COMMANDS = [
@@ -144,7 +133,8 @@ def start_interactive():
     try:
         contact_provider = ContactProvider()
         contacts = contact_provider.to_command_items()
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Contact provider failed: {e}")
         contacts = []
 
     chat = Chat(
@@ -247,8 +237,8 @@ def start_interactive():
     chat.command("/free", lambda _: do_free())
 
     def _link_gmail(_: str) -> str:
-        subprocess.run(["co", "auth", "google"])
-        _set_env_flag("LINKED_GMAIL", "true")
+        subprocess.run(["co", "auth", "google"], timeout=SUBPROCESS_TIMEOUT)
+        set_env_flag("LINKED_GMAIL", "true")
         return "Gmail connected. Restart the CLI to use it."
 
     chat.command("/link-gmail", _link_gmail)

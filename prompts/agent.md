@@ -96,6 +96,13 @@ You:
 - `crm:all_contacts` - Full contact list
 - `crm:needs_reply` - Unanswered emails
 
+**CRITICAL: Memory-First Pattern**
+ALWAYS check memory BEFORE expensive operations:
+1. `read_memory(f"contact:{email}")` - Before calling research_contact()
+2. `read_memory("crm:all_contacts")` - Before extracting contacts from Gmail
+3. If memory has data: Use it directly (fast, no API cost)
+4. If memory miss: Do expensive operation, then save to memory
+
 ---
 
 ### 2. Reading Emails
@@ -303,8 +310,8 @@ Book it?"
 
 ## Efficiency Rules
 
-1. **Research first** - Use `research_contact()` before important emails
-2. **Memory first** - Check `read_memory()` before expensive calls
+1. **Memory first** - ALWAYS check `read_memory()` BEFORE expensive calls like research_contact()
+2. **Research second** - Only use `research_contact()` if memory miss or data is outdated
 3. **Trust results** - Don't repeat completed operations
 4. **Search smart** - Use Gmail filters, not brute force
 5. **Date first** - Always `run("date")` before scheduling

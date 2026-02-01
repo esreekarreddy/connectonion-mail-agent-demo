@@ -1,11 +1,15 @@
 """Setup and auth checks for Email Agent CLI."""
 
 import os
+import sys
 from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils import set_env_flag
 
 console = Console()
 
@@ -45,7 +49,7 @@ def check_setup(skip_init: bool = False) -> bool:
             shell = Shell()
             auth_agent = Agent("auth-helper", tools=[shell], log=False)
             auth_agent.input("Run these commands: co auth, then co auth google")
-            _set_env_flag("LINKED_GMAIL", "true")
+            set_env_flag("LINKED_GMAIL", "true")
             console.print("\n[green]Please restart the CLI.[/green]\n")
         else:
             console.print(
@@ -102,22 +106,3 @@ def check_setup(skip_init: bool = False) -> bool:
                 )
 
     return True
-
-
-def _set_env_flag(key: str, value: str):
-    env_path = Path(".env")
-    lines = []
-    if env_path.exists():
-        lines = env_path.read_text().splitlines()
-
-    found = False
-    for i, line in enumerate(lines):
-        if line.startswith(f"{key}="):
-            lines[i] = f"{key}={value}"
-            found = True
-            break
-
-    if not found:
-        lines.append(f"{key}={value}")
-
-    env_path.write_text("\n".join(lines) + "\n")

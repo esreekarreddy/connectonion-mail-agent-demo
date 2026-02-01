@@ -1,9 +1,16 @@
 """Approval workflow plugin - requires confirmation before sending emails."""
 
+import sys
+from pathlib import Path
+
 from connectonion import before_each_tool
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import MAX_BODY_PREVIEW_LENGTH
+from utils import safe_truncate
 
 console = Console()
 
@@ -25,7 +32,7 @@ def require_send_approval(agent):
         body = args.get("body", args.get("message", ""))
 
         # Truncate body for preview
-        body_preview = body[:200] + ("..." if len(body) > 200 else "")
+        body_preview = safe_truncate(body, MAX_BODY_PREVIEW_LENGTH)
 
         # Show preview panel
         console.print()

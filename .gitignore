@@ -80,3 +80,6 @@ Thumbs.db
 
 # Private/Local documentation
 .local/
+
+# Sisyphus agent workspace
+.sisyphus/

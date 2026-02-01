@@ -1,23 +1,42 @@
 """Core CLI functions for Email Agent."""
 
+import logging
+import sys
+from pathlib import Path
+
 from rich.console import Console
+
+logger = logging.getLogger(__name__)
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils import parse_memory_line, retry_with_backoff
+from config import (
+    RELATIONSHIP_CRITICAL_DAYS,
+    RELATIONSHIP_WARNING_DAYS,
+    RELATIONSHIP_FALLBACK_DAYS,
+    FAST_MODEL,
+    DEFAULT_GMAIL_SEARCH_LIMIT,
+)
 
 console = Console()
 
 
 def _get_agent():
+    """Get the main Email Agent instance."""
     from agent import get_agent
 
     return get_agent()
 
 
 def _get_gmail():
+    """Get the Gmail tool instance, or None if not authenticated."""
     from agent import gmail
 
     return gmail
 
 
 def _get_calendar():
+    """Get the Calendar tool instance, or None if not authenticated."""
     from agent import calendar
 
     return calendar
@@ -130,34 +149,38 @@ def do_relationships() -> str:
 
     try:
         memory_content = memory.list_memories()
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Operation failed: {e}")
         memory_content = ""
 
     contacts = {}
     for line in str(memory_content).split("\n"):
-        if "contact:" in line.lower():
-            parts = line.split("|")
-            if len(parts) >= 2:
-                email_part = parts[0].lower().replace("contact:", "").strip()
-                if "@" in email_part:
-                    date_str = parts[1].strip()
-                    try:
-                        last_contact = datetime.fromisoformat(date_str)
-                        contacts[email_part] = last_contact
-                    except Exception:
-                        pass
+        parsed = parse_memory_line(line)
+        if parsed:
+            key, date_str, _ = parsed
+            email_part = key.lower().replace("contact:", "").strip()
+            if "@" in email_part and date_str:
+                try:
+                    last_contact = datetime.fromisoformat(date_str)
+                    contacts[email_part] = last_contact
+                except Exception as e:
+                    logger.debug(f"Operation failed: {e}")
 
     if not contacts and has_gmail:
         try:
-            recent = gmail.search_emails("in:sent OR in:inbox", max_results=50)
+            recent = gmail.search_emails(
+                "in:sent OR in:inbox", max_results=DEFAULT_GMAIL_SEARCH_LIMIT
+            )
             for line in str(recent).split("\n"):
                 if "from:" in line.lower() or "to:" in line.lower():
                     emails = re.findall(r"[\w\.-]+@[\w\.-]+", line)
                     for email in emails:
                         if email not in contacts:
-                            contacts[email] = datetime.now() - timedelta(days=5)
-        except Exception:
-            pass
+                            contacts[email] = datetime.now() - timedelta(
+                                days=RELATIONSHIP_FALLBACK_DAYS
+                            )
+        except Exception as e:
+            logger.debug(f"Operation failed: {e}")
 
     if not contacts:
         return (
@@ -171,28 +194,29 @@ def do_relationships() -> str:
 
     for email, last_contact in contacts.items():
         days_ago = (now - last_contact).days
-        if days_ago > 14:
+        if days_ago > RELATIONSHIP_CRITICAL_DAYS:
             critical.append((email, days_ago))
-        elif days_ago > 7:
+        elif days_ago > RELATIONSHIP_WARNING_DAYS:
             warning.append((email, days_ago))
         else:
             healthy.append((email, days_ago))
 
-    # Return markdown instead of Rich table for TUI compatibility
     lines = ["## Relationship Health Dashboard\n"]
 
     if critical:
-        lines.append("### Critical (>14 days)")
+        lines.append(f"### Critical (>{RELATIONSHIP_CRITICAL_DAYS} days)")
         for email, days in sorted(critical, key=lambda x: x[1], reverse=True):
             lines.append(f"- {email} ({days} days ago)")
 
     if warning:
-        lines.append("\n### Warning (7-14 days)")
+        lines.append(
+            f"\n### Warning ({RELATIONSHIP_WARNING_DAYS}-{RELATIONSHIP_CRITICAL_DAYS} days)"
+        )
         for email, days in sorted(warning, key=lambda x: x[1], reverse=True):
             lines.append(f"- {email} ({days} days ago)")
 
     if healthy:
-        lines.append("\n### Healthy (<7 days)")
+        lines.append(f"\n### Healthy (<{RELATIONSHIP_WARNING_DAYS} days)")
         for email, days in sorted(healthy, key=lambda x: x[1]):
             lines.append(f"- {email} ({days} days ago)")
 
@@ -218,7 +242,7 @@ def do_weekly() -> str:
     try:
         received = gmail.search_emails(query=f"after:{week_ago} -in:sent", max_results=100)
         sent = gmail.search_emails(query=f"after:{week_ago} in:sent", max_results=100)
-        unread = gmail.search_emails(query="is:unread", max_results=50)
+        unread = gmail.search_emails(query="is:unread", max_results=DEFAULT_GMAIL_SEARCH_LIMIT)
 
         # Count non-empty lines that look like email entries (contain @ or start with digit)
         def count_emails(output: str) -> int:
@@ -238,11 +262,13 @@ def do_weekly() -> str:
         stats = f"Last 7 days: {received_count} received, {sent_count} sent, {unread_count} unread"
 
         try:
-            recommendation = llm_do(
+            recommendation = retry_with_backoff(
+                llm_do,
                 f"Email productivity analysis: {stats}. Provide a brief actionable recommendation (1 sentence).",
-                model="co/gemini-2.5-flash",
+                model=FAST_MODEL,
             )
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Operation failed: {e}")
             recommendation = (
                 "Check your inbox regularly and respond to urgent emails within 24 hours."
             )

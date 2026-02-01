@@ -1,8 +1,13 @@
 """Typer CLI commands for Email Agent."""
 
+import sys
 import typer
+from pathlib import Path
 from rich.console import Console
 from rich.markdown import Markdown
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import DEFAULT_CRM_MAX_EMAILS, DEFAULT_CRM_TOP_N
 
 from .core import (
     do_inbox,
@@ -86,8 +91,8 @@ def voice(
 
 @app.command("init-crm")
 def init_crm(
-    max_emails: int = typer.Option(500, help="Emails to scan"),
-    top_n: int = typer.Option(10, help="Top contacts to analyze"),
+    max_emails: int = typer.Option(DEFAULT_CRM_MAX_EMAILS, help="Emails to scan"),
+    top_n: int = typer.Option(DEFAULT_CRM_TOP_N, help="Top contacts to analyze"),
 ):
     check_setup()
     _print(do_init_crm(max_emails=max_emails, top_n=top_n))
